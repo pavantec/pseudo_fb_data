@@ -1,0 +1,757 @@
+---
+title: "pseudo_fb_data"
+author: "Pavan Pisipati"
+date: "29 June 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+***
+
+### What to Do First?
+Notes: Load necessary libraries into R environment and load the facebook user data file.Undestand the data frame by looking at the dimensions, list of columns and get a feel of data by looking at the top few rows.
+
+***
+```{r Load libraries}
+library(readr)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(tidyr)
+
+```
+
+
+### Pseudo-Facebook User Data
+
+
+```{r Pseudo-Facebook User Data}
+fb <- read_delim("C:/Users/Pavan/Documents/Intro_DA/pseudo_facebook.tsv", delim="\t")
+class(fb)
+str(fb)
+dim(fb)
+names(fb)
+head(fb)
+```
+
+There are fifteen variables and over 99,000 observations in the dataset.
+
+Independent variables : userid, age, dob_day, dob_year, dob_month, gender, tenure
+Dependent variables: friend_count, friendships_initiated, likes, likes_received, mobile_likes, mobile_likes_received, www_likes, www_likes_received
+
+***
+Univariate Data Analysis
+
+### Histogram of Users' Birthdays
+Notes: Let's first look at the distribution of birthdays by dob_day
+
+```{r Histogram of Users Birthdays}
+fb_birth_day <- ggplot(aes(x = dob_day), data = fb)+
+  geom_histogram(binwidth = 1)+
+  scale_x_continuous(breaks = 1:31)
+
+fb_birth_day
+```
+
+
+***
+
+#### What are some things that you notice about this histogram?
+Response: There is a huge spike on 1st day. Also, on 31st the frequency is lower compared to other days. This is understandable because not all months have 31 days.
+
+***
+### Faceting
+Notes: Lets facet our histogram by month variable and see what comes out of the plot.
+
+```{r Faceting}
+fb_birthday_by_month <- ggplot(aes(x = dob_day), data = fb)+
+  geom_histogram(binwidth = 1)+
+  scale_x_continuous(breaks = 1:31)+
+  facet_wrap(~dob_month,ncol = 3)
+
+fb_birthday_by_month
+```
+
+#### Lets take another look at our plot. What stands out to you here?
+Response: There is a big spike of birth days on the first of January. This could be beacuse, the default value in facebook is set to first of January, at the time of user registration. 
+
+***
+### Be Skeptical - Outliers and Anomalies
+Notes: When we plot a variable, we have to pay particular attention to the outliers and anomalies in the data. These outliers helps us to uncover interesting facts about out data set. This shall be taken into account when we do further investigation. 
+
+***
+
+### Friend Count
+Notes: Lets plot a histogram on friend count from our fb dataset
+
+```{r Friend Count}
+
+fb_friend_count <- ggplot(aes(friend_count),data = fb)+
+  geom_histogram()+
+  scale_x_continuous(name= "Friend count",limits = c(0,1000),breaks = seq(0,1000,50))
+
+fb_friend_count
+
+```
+
+The histogram suggests it is right skewed and bulk of our user base have less than 300 friends. Lets drill down gender wise.
+
+***
+```{r}
+friend_count_by_gender <- ggplot(aes(friend_count),data = subset(fb, !is.na(fb$gender)))+
+  geom_histogram()+
+  scale_x_continuous(name = "Friend Count by Gender", limits = c(0,1000),breaks = seq(0,1000,50))+
+  facet_wrap(~gender)
+
+friend_count_by_gender
+```
+
+We have filtered out NA values in our gender variable.
+
+***
+
+### Statistics 'by' Gender
+Notes:
+
+```{r Statistics \'by\' Gender}
+table(fb$gender)
+by(fb$friend_count,fb$gender,summary)
+```
+
+#### Who on average has more friends: men or women?
+Response: females have more friends on average at 242
+
+#### Why would the median be a better measure than the mean?
+Response: Median is resistant to outliers. Mean is affected by the outliers.
+
+***
+
+### Tenure
+Notes: Lets plot histogram of tenure variable.
+
+```{r Tenure}
+tenure_plot <- ggplot(aes(x= tenure), data = fb) +
+  geom_histogram(binwidth = 365,color = 'black', fill = '#098DD9') +
+  scale_x_continuous(breaks = seq(0,2500,500))
+
+tenure_plot
+
+```
+
+The tenure plot gives a picture of facebook users tenure in days. Lets plot the tenure in years.
+***
+
+```{r Tenure Histogram by Year}
+tenure_by_year_plot <- ggplot(aes(x= tenure/365), data = fb) +
+  geom_histogram(color = 'black', fill = '#099DD9')+
+  scale_x_continuous(breaks = seq(0,8,1))
+
+tenure_by_year_plot
+```
+
+The histogram shows majority of the users use facebook under less than two years. 
+***
+
+### Labeling Plots
+Notes: We change the labels of the plot to make it more legible.
+
+```{r Labeling Plots}
+tenure_by_year_plot <- ggplot(aes(x= tenure/365), data = fb) +
+  geom_histogram(color = 'black', fill = '#099DD9')+
+  scale_x_continuous(breaks = seq(0,8,1))+
+  xlab("Number of years user spent on Facebook")+
+  ylab("Number of users in the sample")
+
+tenure_by_year_plot
+```
+
+***
+
+### User Ages
+Notes: Lets look at the age distibution of facebook users. We set binwidth to one to know frequency of each age.
+
+```{r User Ages}
+fb_users_age <- ggplot(aes(x=age), data = fb)+
+  geom_histogram(binwidth = 1,color = 'black', fill = '#099DD9')+
+  scale_x_continuous(breaks = seq(0,120,10))+
+  xlab("Age distribution of Facebook Users")+
+  ylab("Number of Facebook users")
+
+fb_users_age
+```
+
+#### What do you notice?
+Response: The histogram suggests majority of users are below 30 years of age. There are few users with age above ninety. But its highly unlikely. This must be an example of bad data in the extreme case. 
+
+***
+
+### Transforming Data
+Notes: Overdispersed data can be changed by transfoming axes to squareroot and log scale. 
+
+***
+
+### Add a Scaling Layer
+
+```{r Add a Scaling Layer}
+fc <- ggplot(aes(x=friend_count),data=fb)+
+ geom_histogram(binwidth = 50,color = 'black', fill = '#099DD9')+
+ scale_x_continuous(limits = c(0,1000),breaks = seq(0,1000,50))
+fc 
+
+fc_sqrt <- ggplot(aes(x=friend_count),data=fb)+
+  geom_histogram(color = 'black', fill = '#099DD9')+
+  scale_x_sqrt()
+fc_sqrt
+
+fc_log <- ggplot(aes(x=friend_count),data=fb)+
+  geom_histogram(color = 'black', fill = '#099DD9')+scale_x_log10()
+fc_log
+
+grid.arrange(fc,fc_log,fc_sqrt,ncol=2)
+summary(fb$friend_count)
+
+```
+
+***
+Another plot we use to understand the distribution of continuous variables split by a categorical variable is frequency polygon. Frequency polygon joins the mid point of the bars in a histogram to provide a better view of the distribution. In our case, we plot frequency polygon split by gender to understand which gender has more friend count and how does the distribution varies between the gender.
+
+### Frequency Polygons
+
+```{r Frequency Polygons}
+ggplot(subset(fb,!is.na(gender)), aes(x = friend_count,col = gender)) +
+  geom_freqpoly(binwidth = 10) +
+  scale_x_continuous(limits = c(0,1000), breaks = seq(0,1000,50))
+```
+
+***
+
+### Likes on the Web
+Notes: Lets look at which gender got more number of likes on facebook.
+
+```{r Likes on the Web}
+by(fb$www_likes, fb$gender,sum)
+```
+
+
+***
+
+### Box Plots
+Notes: Lets look at friend count by gender
+
+```{r Box Plots}
+
+ggplot(fb, aes(x = gender, y = friend_count))+
+  geom_boxplot()
+
+```
+There are a lot of outliers, so we change the scale to look at it a bit closer.
+
+
+#### Adjust the code to focus on users who have friend counts between 0 and 1000.
+
+```{r}
+ggplot(fb, aes(x = gender, y = friend_count))+
+  geom_boxplot()+
+  scale_y_continuous(limits = c(0,1000))
+```
+
+If we change the scale using scale_y_continuous layer, we are actually removing few data points while plotting the box plot. The quantiles and median will not be accurate in this case. Hence, we use coord_cartesian layer.
+***
+
+### Box Plots, Quartiles, and Friendships
+Notes: This give a better look at our box plot. 
+
+```{r Box Plots, Quartiles, and Friendships}
+ggplot(fb, aes(x = gender, y = friend_count))+
+  geom_boxplot()+
+  coord_cartesian(ylim = c(0,1000))
+```
+
+#### On average, who initiated more friendships in our sample: men or women?
+Response: Women initiated more friendships than men, with a median score of 49.
+#### Write about some ways that you can verify your answer.
+Response: We can use the by command to look at the summary of the variable split by gender. Also, we can plot the box plot of the variable using ggplot2 split by gender. 
+
+```{r Friend Requests by Gender}
+by(fb$friendships_initiated,fb$gender,summary)
+
+ggplot(fb, aes(x = gender, y = friendships_initiated))+
+  geom_boxplot()+
+  coord_cartesian(ylim = c(0,150))
+
+```
+
+
+***
+
+### Analyzing One Variable
+Reflection: 
+1. We explored the uni variate data in our fb dataset, to understand the dataset and noted few interesting observations about the users attributes.
+2. We plotted few visualizations to look at the distributions like histogram, frequency polygons, box plots. 
+3. We looked at how to subset the data and missing values, change scales and labels for the plots.
+4. We looked at faceting the plots by a categorical variable to get finer details of our variables. 
+
+***
+
+### Scatterplots
+Notes: Scatter plots are used to find relationship between two continuous variables. Lets find the relationship between the age and friend count of our pseudo facebook data. 
+
+```{r Scatterplots}
+ggplot(fb, aes(x = age, y = friend_count))+
+  geom_point()+
+  scale_x_continuous(limits = c(13,120), breaks = seq(13,120,2))
+```
+
+***
+
+#### What are some things that you notice right away?
+Response:
+1. People below age 26 have higher friend counts
+2. There are vertical lines at age 68, 102 and 104. These are probably fake data, or incorrect data users gave while registering for facebook.
+3.  Majority of people across age groups have less than 500 friends.
+4. We set the x axis scale to 13 as minimum age to register for facebook is thirteen years old. 
+
+***
+
+### ggplot Syntax
+Notes: It may be very unlikely to have users having age above 90 using facebook. For our study we consider users age between 13 and 90. 
+
+```{r ggplot Syntax}
+
+ggplot(fb, aes(x = age, y = friend_count))+
+  geom_point()+
+  xlim(13,90)
+```
+
+***
+
+### Overplotting
+Notes: From the scatter plot, we can understand that majority of friend counts have a age range between 13 and 28. However, there is a lot of overplotting in the scatter plot because bulk of our data is below 28 years of age.
+
+```{r Overplotting}
+ggplot(fb, aes(x = age, y = friend_count))+
+  geom_jitter(alpha = 1/20)+
+  xlim(13,90)
+```
+
+#### What do you notice in the plot?
+Response:
+1. Majority of users aged below 26 have friend count range of 400 to 500.
+2. There is a decline in the friend count for users aged between 30,40 and increased slightly towards 50.
+
+***
+
+### Coord_trans()
+Notes:
+To overcome the over plotting in the visualizations, we include the alpha aesthetic for transperancy or add layers to the existing visualization to transform scale to square root or log.
+
+```{r Coord_trans()}
+ggplot(fb, aes(x = age, y = friend_count))+
+  geom_point(alpha = 1/20)+
+  xlim(13,90)+
+  coord_trans(y = 'sqrt')
+
+```
+
+
+
+```{r}
+ggplot(fb, aes(x = age, y = friend_count))+
+  geom_point(alpha = 1/20, position = position_jitter(h = 0), col = 'orange')+
+  xlim(13,90)+
+  coord_trans(y = 'sqrt')
+```
+
+#### What do you notice?
+Jitter can add positive or negative noise to the variable
+***
+
+### Alpha and Jitter
+Notes:
+Examine the relationship between friendships initiated and age
+```{r Alpha and Jitter}
+ggplot(fb, aes(x = age, y = friendships_initiated))+
+  geom_point(alpha = 1/10)+
+  xlim(13,90)+
+  coord_trans(y = "sqrt")
+```
+
+***
+
+### Overplotting and Domain Knowledge
+Notes: To overcome the overpplotting, we shall set the alpha parameter and use a transformation scale for axes. This gives us a finer view of the plot.
+
+***
+
+### Conditional Means
+Notes: Lets see how mean friend count varies with age. 
+
+```{r Conditional Means}
+fb.fc_by_age <- fb %>%
+  group_by(age) %>%
+  summarise(mean_age = mean(friend_count), median_age = median(friend_count), total_users = n()) %>%
+  arrange(age)
+
+fb.fc_by_age
+```
+
+Create the plot!
+
+```{r Conditional Means Plot}
+ggplot(fb.fc_by_age, aes(x = age, y = mean_age))+
+  geom_line()
+```
+
+***
+
+### Overlaying Summaries with Raw Data
+Notes:
+
+```{r Overlaying Summaries with Raw Data}
+ggplot(fb, aes(x = age, y = friend_count))+
+  geom_point(alpha = 1/20, position = position_jitter(h = 0), col = 'orange')+
+  geom_line(stat = 'summary', fun.y = mean)+
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .1), linetype = 2, color = 'blue') +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .5), color = 'blue') +
+  geom_line(stat = 'summary', fun.y = quantile, fun.args = list(probs = .9), linetype = 2, color = 'blue') +
+  coord_cartesian(xlim = c(13,70), ylim = c(0,1000))
+
+```
+
+#### What are some of your observations of the plot?
+Response:
+1. The upper limit of the friend count did not cross 1000 for ages below 30. 
+2. There are spikes in the friend count towards the right side for age above 65.
+3. Friend count of users between age 30 and 50 is less than 250. 
+
+
+***
+
+### Correlation
+Notes: COrrelation coefficient is a measurement which quantifies the strength of relationship between two variables. It ranges between -1 and +1. -1 denotes perfect negative relationship and +1 denotes a perfect positive relationship, even though it is hypothetical. A correlation coefficient of greater than +- 0.7 suggest there is a strong correlation between the two variables.
+
+```{r Correlation}
+cor.test(fb$friend_count, fb$age, method = 'pearson')
+
+with(fb, cor.test(friend_count, age, method = 'pearson'))
+
+```
+
+What's the correlation between age and friend count? Round to three decimal places.
+Response: -0.027
+
+***
+
+### Correlation on Subsets
+Notes:
+
+```{r Correlation on Subsets}
+with(subset(fb,fb$age <= 70), cor.test(age, friend_count))
+```
+
+***
+
+### Correlation Methods
+Notes:
+Pearsons correlation
+Spearman rank correlation
+and Kendall rank correlation
+***
+
+## Create Scatterplots
+Notes:
+Lets create a scatter plot between likes received and www likes received
+```{r}
+ggplot(fb, aes(x = www_likes_received, y = likes_received))+
+  geom_point(alpha = 1/10)
+```
+
+***
+
+### Strong Correlations
+Notes: Adding a smoothing line for the scatter plot
+
+```{r Strong Correlations}
+ggplot(fb, aes(x = www_likes_received, y = likes_received))+
+  geom_point()+
+  xlim(0,quantile(fb$www_likes_received,0.95))+
+  ylim(0,quantile(fb$likes_received,0.95))+
+  geom_smooth(method = 'lm', color = 'red')
+
+```
+
+What's the correlation betwen the two variables? Include the top 5% of values for the variable in the calculation and round to 3 decimal places.
+
+```{r Correlation Calcuation}
+with(fb, cor.test(www_likes_received, likes_received))
+
+```
+
+Response: The correlation between these two variables is 0.94, which makes sense since www_likes_recieved is a subset of likes_received
+
+***
+
+### More Caution with Correlation
+Notes:
+
+```{r More Caution With Correlation}
+install.packages('alr3')
+library(alr3)
+```
+
+Create your plot!
+
+```{r Temp vs Month}
+ggplot(Mitchell, aes(x = Month, y = Temp))+
+  geom_point()
+
+```
+
+***
+
+### Noisy Scatterplots
+a. What is the actual correlation of the two variables?
+(Round to the thousandths place)
+
+```{r Noisy Scatterplots}
+
+with(Mitchell, cor.test(Month,Temp))
+
+```
+
+***
+
+### Making Sense of Data
+Notes:
+
+```{r Making Sense of Data}
+ggplot(Mitchell, aes(x = Month, y = Temp))+
+  geom_point() +
+  scale_x_continuous(breaks = seq(0,204,12))
+
+```
+
+***
+
+### A New Perspective
+
+Response:
+There is a cyclical pattern in the change in temperature over the years.
+Watch the solution video and check out the Instructor Notes!
+Notes:
+
+You could also get perspective on this data by overlaying each year's data on top of each other, giving a clear, generally sinusoidal graph. You can do this by using the R's modulus operator %% in your code. Try running the code below!
+ggplot(aes(x=(Month%%12),y=Temp),data=Mitchell)+ 
+  geom_point() 
+
+There are other measures of associations that can detect this. The dcor.ttest() function in the energy package implements a non-parametric test of the independence of two variables. While the Mitchell soil dataset is too coarse to identify a significant dependency between "Month" and "Temp", we can see the difference between dcor.ttest and cor.test through other examples, like the following:
+x <- seq(0, 4*pi, pi/20)
+y <- cos(x)
+qplot(x = x, y = y)
+dcor.ttest(x, y)
+
+***
+
+### Understanding Noise: Age to Age Months
+Notes: Lets split age by age_months and plot the graph.
+
+```{r Understanding Noise: Age to Age Months}
+
+ggplot(fb.fc_by_age, aes(x = age, y = mean_age))+
+  geom_line()
+
+```
+
+***
+
+### Age with Months Means
+
+```{r Age with Months Means}
+
+fb$age_with_months <- fb$age + (12-fb$dob_month)/12
+
+head(fb$age_with_months, 30)
+         
+    
+         
+```
+
+Programming Assignment
+```{r Programming Assignment}
+fb.fc_by_age_months <- fb %>%
+  group_by(age_with_months) %>%
+  summarise(mean_fc = mean(friend_count), median_fc = median(friend_count), n = n()) %>%
+  arrange(age_with_months)
+
+fb.fc_by_age_months
+
+
+```
+
+***
+
+### Noise in Conditional Means
+
+```{r Noise in Conditional Means}
+ggplot(subset(fb.fc_by_age_months, age_with_months<71), aes(x = age_with_months, y = mean_fc))+
+  geom_line()
+```
+
+***
+
+### Smoothing Conditional Means
+Notes:
+
+```{r Smoothing Conditional Means}
+p1 <- ggplot(subset(fb,age <71 ), aes(x = age, y = friend_count))+
+  geom_line(stat = 'summary', fun.y = mean)+
+  geom_smooth()
+
+p2 <- ggplot(subset(fb.fc_by_age_months, age_with_months<71), aes(x = age_with_months, y = mean_fc))+
+  geom_line()+
+  geom_smooth()
+
+p3 <- ggplot(aes(x = round(age/5)*5, y= friend_count), data = subset(fb, age<71))+
+  geom_line(stat = 'summary', fun.y = mean)
+library(gridExtra)
+
+grid.arrange(p1,p2,p3)
+
+
+
+```
+
+
+***
+
+### Analyzing Two Variables
+Reflection:
+1. Investigate two variables in a data set using scatter plots.
+2. Work with scatter plots to change scale, transform, and look for clues.
+3. Introduce conditional means to the dataset and create plots.
+4. Calculate correlation coefficients.
+5. Compare multiple plots in one window using gridExtra package
+6. Understanding linear regression.
+***
+
+
+
+
+### Multivariate Data
+Notes: Here we analyse our fb dataset using more than two variables.
+
+***
+
+### Third Qualitative Variable
+
+
+```{r Third Qualitative Variable}
+ggplot(aes(x = age, fill = gender),
+       data = subset(fb, !is.na(gender))) + 
+  geom_histogram()
+```
+
+***
+
+```{r reshaping using tidyr}
+
+fb.fc_by_age_gender.wide <- fb.fc_by_age_gender %>%
+  select(gender, age, median_friend_count) %>%
+  spread(gender,median_friend_count)
+
+fb.fc_by_age_gender.wide
+
+```
+
+
+***
+
+### Ratio Plot
+Notes:Plot the ratio of the female to male median friend counts using the data frame
+pf.fc_by_age_gender.wide.
+
+```{r Ratio Plot}
+
+ggplot(fb.fc_by_age_gender.wide, aes(x = age,y = female/male)) +
+  geom_line() +
+  geom_hline(yintercept = 1, alpha = 0.6, linetype = 2)
+```
+The plot clearly indicates that females have higher median friend count ratio than males till the age of 60, almost twice as high for female users less than 25.
+
+***
+
+### Third Quantitative Variable
+Notes: Lets add third numeric variable into our analysis "tenure" to see how median friend count varies with age and tenure. The reason to use tenure here is that over time users accumulate their friends count. Lets find out how tenure play a role in accumulating friend count for facebook. 
+
+To do this, lets create a new variable, year joined from tenure
+
+```{r Third Quantitative Variable}
+
+fb$year_joined <- floor(2014 - fb$tenure/365)
+summary(fb$year_joined)
+table(fb$year_joined)
+
+```
+
+***
+
+### Cut a Variable
+Notes: From the table summary, it is evident that more people joined facebook in 2012 and 2013. Lets group the year_joined variable and see how friend count varies with age. 
+
+```{r Cut a Variable}
+
+fb$year_joined.bucket <- cut(fb$year_joined,breaks = c(2004,2009,2011,2012,2014))
+
+table(fb$year_joined.bucket)
+```
+
+***
+
+### Plotting it All Together
+
+```{r Plotting it All Together}
+ggplot(subset(fb,!is.na(year_joined.bucket)), aes(x = age, y = friend_count))+
+  geom_line(aes(color = year_joined.bucket),stat = 'summary', fun.y = median)
+```
+
+***
+
+### Plot the Grand Mean
+
+```{r Plot the Grand Mean}
+ggplot(subset(fb,!is.na(year_joined.bucket)), aes(x = age, y = friend_count))+
+  geom_line(aes(color = year_joined.bucket),stat = 'summary', fun.y = mean)+
+  geom_line(stat = 'summary', fun.y = mean, linetype = 4)
+
+```
+
+***
+
+### Friending Rate
+
+```{r Friending Rate}
+with(subset(fb,tenure>= 1), summary(friend_count/tenure))
+```
+
+***
+
+### Friendships Initiated
+Notes: Clearly the maximum friend rate is an outlier because the third quartile is 0.56
+
+What is the median friend rate?
+0.22
+What is the maximum friend rate?
+417
+```{r Friendships Initiated}
+ggplot(aes(x = tenure, y = friendships_initiated / tenure),
+       data = subset(fb, tenure >= 1)) +
+  geom_line(aes(color = year_joined.bucket),
+            stat = 'summary',
+            fun.y = mean)
+```
+
+The plot shows clearly that users with more tenure initiate less friendships.
